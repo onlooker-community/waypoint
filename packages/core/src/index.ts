@@ -1,5 +1,6 @@
 // Models — the data layer
 export * from "./models/index.js";
+export { Waypoint, createWaypoint } from "./api/index.js";
 
 // API interface — what adapters depend on
 export type { WaypointAPI } from "./api/types.js";

@@ -7,11 +7,12 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "vitest",
+    "test": "vitest --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
     "@waypoint/core": "*",
     "hono": "^4.0.0",
     "zod": "^3.22.0"
