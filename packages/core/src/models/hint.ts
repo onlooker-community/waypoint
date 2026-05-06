@@ -53,6 +53,9 @@ export const WaypointHintSchema = z.object({
   // Useful for logging, learning, and UI
   targetConcept: z.string(),
 
+  // Playbook bullets whose content was injected into hint generation (ACE feedback)
+  playbookBulletIds: z.array(z.string()).default([]),
+
   recommendation: HintRecommendationSchema,
 
   createdAt: z.date().default(() => new Date()),
