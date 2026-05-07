@@ -7,6 +7,13 @@ import type { AgentCapabilityProfile } from "../models/profile.js";
 import type { RelianceScore } from "../models/reliance.js";
 import type { Task } from "../models/task.js";
 import type { WaypointStore } from "../store/types.js";
+export {
+  createWaypoint,
+  type WaypointDeps,
+  type WaypointRuntime,
+  type HintGenerationInput,
+  type GeneratedHintPayload,
+} from "./waypoint.js";
 import { MemoryStore } from "../store/memory.js";
 import { runHinter } from "../hinter/index.js";
 import { measureReliance as measureRelianceImpl } from "../reliance/index.js";
