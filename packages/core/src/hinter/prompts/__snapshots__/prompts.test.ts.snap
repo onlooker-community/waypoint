@@ -1,0 +1,163 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildDiagnosePrompt > matches diagnose prompt snapshot 1`] = `
+"You are a precise failure analyst. Your job is to identify exactly why an AI agent failed a task.
+
+Be surgical. Do not be encouraging. Do not suggest fixes yet. Just diagnose.
+
+## Task
+Type: code
+Context:
+JavaScript environment, Node.js 20
+
+Success criteria:
+Must use the Sieve of Eratosthenes, not trial division
+
+
+Content:
+Write a function that finds all prime numbers up to n
+
+## Agent's Failed Attempt (Attempt #1)
+function primes(n) { /* trial division O(n^2) */ }
+
+## Failure Signal
+Uses O(n²) trial division instead of sieve
+
+## Your Diagnosis
+
+Identify:
+1. FAILURE_TYPE: One of: wrong_approach | missing_concept | implementation_error | misunderstood_task | out_of_scope
+2. ROOT_CAUSE: The single most specific reason this failed. One sentence.
+3. MISSING_INSIGHT: The concept, pattern, or technique the agent is not applying. Be specific.
+4. HINT_DIRECTION: The category of nudge that would help most. One of: reframe | missing_tool | intermediate_goal | alternative_representation | constraint_reminder
+
+Respond in this exact format:
+<diagnosis>
+  <failure_type>VALUE</failure_type>
+  <root_cause>VALUE</root_cause>
+  <missing_insight>VALUE</missing_insight>
+  <hint_direction>VALUE</hint_direction>
+</diagnosis>"
+`;
+
+exports[`buildDifficultyPrompt > matches difficulty prompt snapshot 1`] = `
+"You are estimating whether an AI agent is likely to get stuck on a task, so we can decide whether to proactively provide a hint.
+
+## Task
+Type: code
+Context:
+JavaScript environment, Node.js 20
+
+Content:
+Write a function that finds all prime numbers up to n
+
+Success criteria:
+Must use the Sieve of Eratosthenes, not trial division
+
+## Context
+Previous failed attempts: 2
+
+## Difficulty Levels
+- easy: A capable agent will solve this on the first or second attempt. No hint needed.
+- medium: May require a retry. Hint if it fails once.
+- hard: Likely to produce all-incorrect outputs without intervention. Hint immediately.
+- out_of_scope: Beyond reasonable agent capability. Escalate to a human — hinting won't help.
+
+## Assessment Criteria
+Consider:
+- Does solving this require specialist knowledge the agent may lack?
+- Does it require multi-step reasoning with many places to go wrong?
+- Are there common misconceptions likely to trap the agent?
+- Is the task ambiguous in ways that could cause systematic failure?
+- Has it already failed multiple times (attempts: 2)?
+
+## Output Format
+<difficulty_assessment>
+  <level>easy | medium | hard | out_of_scope</level>
+  <score>A number between 0.0 and 1.0</score>
+  <should_hint>true or false</should_hint>
+  <reasoning>One sentence explaining the assessment</reasoning>
+</difficulty_assessment>"
+`;
+
+exports[`buildGeneratePrompt > matches generate prompt snapshot 1`] = `
+"You are Waypoint — a pedagogical hint generator. Your only job is to produce a minimal hint that orients an agent toward the correct approach without doing the work for them.
+
+## The Prime Directive
+A good hint suggests a direction. A bad hint walks the path.
+
+The agent must still do the reasoning. If your hint contains computed values, written-out equations, or step-by-step instructions, you have failed.
+
+## Task
+Type: code
+Content:
+Write a function that finds all prime numbers up to n
+
+Context:
+JavaScript environment, Node.js 20
+
+## What the Agent Tried
+function primes(n) { /* trial division O(n^2) */ }
+
+## Diagnosis
+- Failure type: wrong_approach
+- Root cause: Agent used trial division
+- Missing insight: Sieve of Eratosthenes  
+- Hint direction: missing_tool
+
+## What Success Looks Like (for your reference only — do not reveal this)
+Must use the Sieve of Eratosthenes, not trial division
+
+## Hint Rules
+1. Maximum 3 sentences
+2. Suggest a strategy, approach, or concept — never a solution
+3. Do not include computed values, substituted numbers, or derived results
+4. Do not write "Here is a hint" or any meta-framing
+5. Do not reference the diagnosis directly
+6. Write as if speaking to a capable colleague who just needs reorienting
+
+## Hint Direction Guidance
+Point to a theorem, algorithm, data structure, or technique the agent isn't applying. Name it — don't explain it.
+
+## Output Format
+<hint_output>
+  <target_concept>The specific concept or technique being nudged toward (3-6 words)</target_concept>
+  <hint>Your hint text here</hint>
+</hint_output>"
+`;
+
+exports[`buildJudgePrompt > matches judge prompt snapshot 1`] = `
+"You are evaluating whether an agent's successful output depended on a hint it was given, or whether it could have produced that output independently.
+
+## The Task
+find primes
+
+## The Hint That Was Provided
+think about sieves
+
+## The Agent's Output
+here is my sieve
+
+## Your Job
+Estimate how much the agent's output relied on the hint vs. what it could have reasoned independently.
+
+Ask yourself:
+- Does the output reference the hint explicitly? (strong reliance signal)
+- Does the output use specific values, formulations, or steps that only appeared in the hint?
+- Could a capable agent have reached this output without the hint?
+- Is the hint's contribution conceptual (low reliance) or computational (high reliance)?
+
+## Scoring
+0.0 = Output is entirely independent — hint was irrelevant or redundant
+0.25 = Hint oriented the approach but agent did all the reasoning
+0.5 = Hint meaningfully scaffolded the solution — borderline
+0.75 = Output depends heavily on the hint's specific content
+1.0 = Output is essentially a transcription of the hint
+
+## Output Format
+<reliance_assessment>
+  <score>A number between 0.0 and 1.0</score>
+  <hint_explicitly_referenced>true or false</hint_explicitly_referenced>
+  <reasoning>One or two sentences explaining the score</reasoning>
+</reliance_assessment>"
+`;
