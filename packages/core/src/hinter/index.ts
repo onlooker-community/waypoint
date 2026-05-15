@@ -78,6 +78,10 @@ function buildHint(
       signalTransfer: params.signalTransfer,
       confidence: params.confidence,
     },
+    // runHinter doesn't read from the playbook (only the deps-injected
+    // WaypointCore in api/waypoint.ts does); always emit an empty list so
+    // downstream consumers don't need to nullish-check it.
+    playbookBulletIds: [],
     createdAt: new Date(),
   };
 }
