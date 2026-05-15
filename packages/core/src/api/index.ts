@@ -8,12 +8,16 @@ import type { RelianceScore } from "../models/reliance.js";
 import type { Task } from "../models/task.js";
 import type { WaypointStore } from "../store/types.js";
 export {
-  createWaypoint,
   type WaypointDeps,
   type WaypointRuntime,
   type HintGenerationInput,
   type GeneratedHintPayload,
 } from "./waypoint.js";
+// Note: `createWaypoint` is intentionally NOT re-exported from ./waypoint.js
+// here — that module exports a deps-injected factory with a different
+// signature. The convenience factory below (with `WaypointOptions`) is the
+// public surface most callers consume; the deps-injected form lives in
+// ./waypoint.js for internal/advanced use.
 import { MemoryStore } from "../store/memory.js";
 import { runHinter } from "../hinter/index.js";
 import { measureReliance as measureRelianceImpl } from "../reliance/index.js";
