@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "packages/adapters/*"
+    "packages/adapters/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "turbo build",
