@@ -20,7 +20,7 @@ import {
 } from "@waypoint/core";
 
 export interface SqliteStoreOptions {
-	/** Absolute path to the database file. Defaults to ~/.waypoint/playbook.db. */
+	/** Path to the database file (absolute or relative). Defaults to ~/.waypoint/playbook.db. */
 	dbPath?: string;
 }
 
@@ -70,13 +70,14 @@ export class SqliteStore implements WaypointStore {
 			CREATE INDEX IF NOT EXISTS idx_hints_case_id ON hints(case_id);
 
 			CREATE TABLE IF NOT EXISTS outcomes (
+				id          INTEGER PRIMARY KEY AUTOINCREMENT,
 				hint_id     TEXT NOT NULL,
 				case_id     TEXT NOT NULL,
 				recorded_at TEXT NOT NULL,
-				data        TEXT NOT NULL,
-				PRIMARY KEY (hint_id, recorded_at)
+				data        TEXT NOT NULL
 			);
 			CREATE INDEX IF NOT EXISTS idx_outcomes_case_id ON outcomes(case_id);
+			CREATE INDEX IF NOT EXISTS idx_outcomes_hint_id ON outcomes(hint_id);
 
 			CREATE TABLE IF NOT EXISTS reliance_scores (
 				case_id TEXT PRIMARY KEY,
@@ -161,12 +162,17 @@ export class SqliteStore implements WaypointStore {
 	async getOutcomesForAgent(agentId: string): Promise<HintOutcome[]> {
 		// Outcome rows don't store agentId directly; the in-memory reference
 		// implementation filters by `caseId.startsWith(agentId)`. Mirror that
-		// so behaviour is consistent across stores.
+		// with a half-open range scan so agent ids containing LIKE
+		// metacharacters (`_`, `%`) or case-equivalent ASCII can't match
+		// other agents' rows. SQLite TEXT defaults to BINARY collation,
+		// so `>=` / `<` are byte-wise and case-sensitive.
+		const lo = agentId;
+		const hi = agentId + "￿";
 		const rows = this.db
 			.prepare(
-				"SELECT data FROM outcomes WHERE case_id LIKE ? ORDER BY recorded_at ASC"
+				"SELECT data FROM outcomes WHERE case_id >= ? AND case_id < ? ORDER BY recorded_at ASC, id ASC"
 			)
-			.all(`${agentId}%`) as Array<{ data: string }>;
+			.all(lo, hi) as Array<{ data: string }>;
 		return rows.map((r) => HintOutcomeSchema.parse(deserialize(r.data)));
 	}
 
@@ -294,10 +300,25 @@ export class SqliteStore implements WaypointStore {
 
 // ----- serialisation helpers --------------------------------------------------
 
+// Restore Date objects only on fields whose schemas use `z.date()`. A blanket
+// match-any-ISO-prefix reviver would also convert arbitrary content fields
+// (task content, hint content, bullet text) whenever they happen to start with
+// a timestamp, leaving them as Dates and breaking Zod parsing on read.
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+const DATE_FIELDS: ReadonlySet<string> = new Set([
+	"createdAt",
+	"lastSeenAt",
+	"lastUpdated",
+	"recordedAt",
+	"timestamp",
+]);
 
-function dateReviver(_key: string, value: unknown): unknown {
-	if (typeof value === "string" && ISO_DATE_RE.test(value)) {
+function dateReviver(key: string, value: unknown): unknown {
+	if (
+		DATE_FIELDS.has(key) &&
+		typeof value === "string" &&
+		ISO_DATE_RE.test(value)
+	) {
 		return new Date(value);
 	}
 	return value;

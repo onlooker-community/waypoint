@@ -393,3 +393,111 @@ describe("SqliteStore — persistence", () => {
 		expect(bullets.map((x) => x.id)).toEqual(["b1"]);
 	});
 });
+
+// Regression guards for review feedback on PR #6 (Copilot).
+
+describe("SqliteStore — outcomes regression (PR #6 feedback)", () => {
+	it("accepts two outcomes for the same hint with identical recordedAt", async () => {
+		// MemoryStore/FileStore append without deduplicating; a composite PK
+		// of (hint_id, recorded_at) would reject the second row and diverge
+		// behaviour across stores when callers retry or two outcomes record
+		// in the same millisecond.
+		const sameInstant = new Date("2024-01-01T00:00:00.000Z");
+		const o1: HintOutcome = {
+			hintId: "h-dup",
+			caseId: "agent-A:case-1",
+			succeeded: false,
+			hintReferenced: false,
+			attemptsAfterHint: 1,
+			recordedAt: sameInstant,
+		};
+		const o2: HintOutcome = { ...o1, succeeded: true, attemptsAfterHint: 2 };
+		await store.saveOutcome(o1);
+		await store.saveOutcome(o2);
+		const got = await store.getOutcomesForAgent("agent-A");
+		expect(got).toHaveLength(2);
+	});
+});
+
+describe("SqliteStore — getOutcomesForAgent prefix matching (PR #6 feedback)", () => {
+	it("does not treat `_` or `%` in the agent id as wildcards", async () => {
+		// LIKE-based filtering would expand `agent_A` to "agent" + any single
+		// char + "A" and could match other agents' rows.
+		const oUnderscore: HintOutcome = {
+			hintId: "h-u",
+			caseId: "agent_A:case-1",
+			succeeded: true,
+			hintReferenced: false,
+			attemptsAfterHint: 0,
+			recordedAt: new Date("2024-01-01T00:00:00Z"),
+		};
+		const oHyphen: HintOutcome = {
+			...oUnderscore,
+			hintId: "h-h",
+			caseId: "agent-A:case-1",
+		};
+		await store.saveOutcome(oUnderscore);
+		await store.saveOutcome(oHyphen);
+
+		const got = await store.getOutcomesForAgent("agent_A");
+		expect(got.map((o) => o.hintId)).toEqual(["h-u"]);
+	});
+
+	it("matches case-sensitively even on ASCII", async () => {
+		// Default SQLite TEXT comparison is BINARY (case-sensitive), but the
+		// previous LIKE-based filter was effectively case-insensitive for
+		// ASCII. Lock the case-sensitive contract.
+		const oLower: HintOutcome = {
+			hintId: "h-l",
+			caseId: "agent-a:case-1",
+			succeeded: true,
+			hintReferenced: false,
+			attemptsAfterHint: 0,
+			recordedAt: new Date("2024-01-01T00:00:00Z"),
+		};
+		const oUpper: HintOutcome = {
+			...oLower,
+			hintId: "h-U",
+			caseId: "agent-A:case-1",
+		};
+		await store.saveOutcome(oLower);
+		await store.saveOutcome(oUpper);
+
+		const lower = await store.getOutcomesForAgent("agent-a");
+		const upper = await store.getOutcomesForAgent("agent-A");
+		expect(lower.map((o) => o.hintId)).toEqual(["h-l"]);
+		expect(upper.map((o) => o.hintId)).toEqual(["h-U"]);
+	});
+});
+
+describe("SqliteStore — date reviver scoping (PR #6 feedback)", () => {
+	it("does not coerce arbitrary content fields that happen to start with an ISO timestamp", async () => {
+		// The earlier reviver matched any string starting with an ISO date —
+		// a task whose prompt opens with a timestamp would be returned with
+		// `task.content` as a Date and then fail Zod parsing on read.
+		const c = createCase({
+			task: {
+				content:
+					"2024-01-01T00:00:00Z — investigate why the export job stalls overnight",
+				type: "code",
+			},
+			attempt: {
+				content: "investigated, no fix yet",
+				failureSignal: "incomplete",
+				attemptNumber: 1,
+				timestamp: new Date("2024-02-02T00:00:00Z"),
+			},
+			agentId: "agent-1",
+			sessionId: "session-1",
+		});
+
+		await store.saveCase(c);
+		const got = await store.getCase(c.id);
+
+		expect(got).not.toBeNull();
+		expect(typeof got!.task.content).toBe("string");
+		expect(got!.task.content).toBe(c.task.content);
+		// Real date field is still revived to a Date.
+		expect(got!.attempt.timestamp).toBeInstanceOf(Date);
+	});
+});

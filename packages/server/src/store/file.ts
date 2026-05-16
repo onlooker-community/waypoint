@@ -20,11 +20,25 @@ interface StoreData {
   bullets: Record<string, PlaybookBullet>;
 }
 
-// ISO-8601 date strings from JSON.parse are coerced back to Date objects.
+// Restore Date objects only on fields whose schemas use `z.date()`. A blanket
+// match-any-ISO-prefix reviver would also convert arbitrary content fields
+// (task content, hint content, bullet text) whenever they happen to start with
+// a timestamp, leaving them as Dates and breaking Zod parsing on read.
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+const DATE_FIELDS: ReadonlySet<string> = new Set([
+  "createdAt",
+  "lastSeenAt",
+  "lastUpdated",
+  "recordedAt",
+  "timestamp",
+]);
 
-function dateReviver(_key: string, value: unknown): unknown {
-  if (typeof value === "string" && ISO_DATE_RE.test(value)) {
+function dateReviver(key: string, value: unknown): unknown {
+  if (
+    DATE_FIELDS.has(key) &&
+    typeof value === "string" &&
+    ISO_DATE_RE.test(value)
+  ) {
     return new Date(value);
   }
   return value;
