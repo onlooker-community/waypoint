@@ -12,14 +12,20 @@
     "test": "turbo test",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "verify": "CI=1 turbo run lint typecheck test build",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-push": "npm run verify"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "simple-git-hooks": "^2.13.1",
     "turbo": "latest",
     "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "vitest": "^1.0.0",
-    "eslint": "^8.0.0"
+    "vitest": "^1.0.0"
   },
   "packageManager": "npm@11.9.0"
 }
