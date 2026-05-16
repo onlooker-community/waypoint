@@ -75,3 +75,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export default app;
+
+// Public store exports — consumers (CLI, tests, custom servers) can use these
+// directly to back a Waypoint instance.
+export { FileStore } from "./store/file.js";
+export { SqliteStore, type SqliteStoreOptions } from "./store/sqlite.js";
