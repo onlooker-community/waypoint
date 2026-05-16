@@ -5,13 +5,25 @@ steps, runs against the real Anthropic API.
 
 ## Run it
 
+From the repo root:
+
 ```sh
 ANTHROPIC_API_KEY=sk-... npx tsx examples/basic-hint/index.ts
+```
+
+Or via the workspace `start` script:
+
+```sh
+ANTHROPIC_API_KEY=sk-... npm start -w @waypoint/example-basic-hint
 ```
 
 That is the only required setup. The example uses the workspace versions
 of `@waypoint/core` and `@waypoint/server` — `npm install` at the repo
 root wires them up.
+
+A single run makes **three Anthropic API calls**: one for `hint`, one
+for the post-hoc reliance judge inside `recordOutcome`, and one for
+`curateLesson`. Steps 1, 3, and 6 are local.
 
 The Playbook is persisted to `examples/basic-hint/.waypoint/playbook.db`
 (a local SQLite file) so re-running the example accumulates lessons
@@ -27,16 +39,17 @@ across runs. Delete the directory for a fresh start.
    generates a conceptual hint via Anthropic. The hint comes back with
    `signalCreation` / `signalTransfer` quality scores and a target
    concept.
-3. **Simulate a successful retry.** Rather than spend tokens on a second
-   model call, the example synthesises the corrected code directly —
-   that is what you would otherwise capture from your agent.
+3. **Simulate a successful retry.** The example synthesises the
+   corrected code directly — that is what you would otherwise capture
+   from your agent. No model call.
 4. **`waypoint.recordOutcome(outcome)`.** Closes the loop. The store
-   saves the outcome, judges reliance against the final output, and
-   updates feedback counters on any Playbook bullets that fed the hint.
+   saves the outcome, judges reliance against the final output (which
+   issues an Anthropic call under the hood), and updates feedback
+   counters on any Playbook bullets that fed the hint.
 5. **Curate a Playbook lesson.** `curateLesson` from
-   `@waypoint/core/playbook` distils a transferable bullet out of this
-   case + hint + outcome, and `SqliteStore.appendBullet` writes it to
-   disk.
+   `@waypoint/core/playbook` calls the model to distil a transferable
+   bullet out of this case + hint + outcome, and
+   `SqliteStore.appendBullet` writes it to disk.
 6. **Inspect the Playbook.** `store.listBullets()` shows the bullet you
    just added — and any from previous runs, since SQLite persists.
 

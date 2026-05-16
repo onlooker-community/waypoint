@@ -3,15 +3,21 @@
  *
  * What this script demonstrates, in order:
  *   1. Build a `WaypointCase` describing a realistic coding failure.
- *   2. Call `waypoint.hint(case)` to generate a hint via the configured model.
- *   3. Simulate a successful retry by synthesising an attempt object
- *      (no second model round-trip needed for the demo).
+ *   2. Call `waypoint.hint(case)` to generate a hint via the configured
+ *      model. [Anthropic call #1]
+ *   3. Simulate a successful retry by synthesising an attempt object —
+ *      no model call here; the example fakes what your agent would emit.
  *   4. Call `waypoint.recordOutcome()` so Waypoint can score reliance,
- *      update feedback counters on injected bullets, and so on.
+ *      update feedback counters on injected bullets, and so on. Because
+ *      `outcome.finalOutput` is set, this triggers a judge-model call to
+ *      `measureReliance`. [Anthropic call #2]
  *   5. Curate a Playbook lesson from this case + hint + outcome, and
- *      persist it via the store.
+ *      persist it via the store. `curateLesson` invokes the model to
+ *      distil the bullet. [Anthropic call #3]
  *   6. List the Playbook and show the accumulated bullet — proving the
  *      lesson survives across runs (SqliteStore is on disk).
+ *
+ * A single run makes three Anthropic API calls in total.
  *
  * Run:
  *   ANTHROPIC_API_KEY=sk-... npx tsx examples/basic-hint/index.ts
