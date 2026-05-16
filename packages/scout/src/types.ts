@@ -9,7 +9,7 @@ import { z } from "zod";
 // which is the whole point of Scout's reversible isolation model.
 export const ContextUnitSchema = z.object({
   id: z.string().min(1),
-  content: z.string(),
+  content: z.string().min(1),
   role: z.enum(["user", "assistant"]),
   activationState: z.enum(["active", "inactive", "parked"]),
   timestamp: z.date(),
