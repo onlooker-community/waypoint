@@ -2,17 +2,22 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type {
   WaypointStore,
+  BulletFeedbackKind,
+  WaypointCase,
   WaypointHint,
   HintOutcome,
   AgentCapabilityProfile,
   RelianceScore,
+  PlaybookBullet,
 } from "@waypoint/core";
 
 interface StoreData {
+  cases: Record<string, WaypointCase>;
   hints: Record<string, WaypointHint>;
   outcomes: Record<string, HintOutcome[]>;
   relianceScores: Record<string, RelianceScore>;
   profiles: Record<string, AgentCapabilityProfile>;
+  bullets: Record<string, PlaybookBullet>;
 }
 
 // ISO-8601 date strings from JSON.parse are coerced back to Date objects.
@@ -26,7 +31,14 @@ function dateReviver(_key: string, value: unknown): unknown {
 }
 
 function emptyData(): StoreData {
-  return { hints: {}, outcomes: {}, relianceScores: {}, profiles: {} };
+  return {
+    cases: {},
+    hints: {},
+    outcomes: {},
+    relianceScores: {},
+    profiles: {},
+    bullets: {},
+  };
 }
 
 /**
@@ -46,7 +58,8 @@ export class FileStore implements WaypointStore {
 
     try {
       const raw = await readFile(this.dataPath, "utf-8");
-      this.cache = JSON.parse(raw, dateReviver) as StoreData;
+      const parsed = JSON.parse(raw, dateReviver) as Partial<StoreData>;
+      this.cache = { ...emptyData(), ...parsed };
     } catch {
       this.cache = emptyData();
     }
@@ -57,6 +70,17 @@ export class FileStore implements WaypointStore {
   private async persist(): Promise<void> {
     await mkdir(dirname(this.dataPath), { recursive: true });
     await writeFile(this.dataPath, JSON.stringify(this.cache, null, 2), "utf-8");
+  }
+
+  async saveCase(c: WaypointCase): Promise<void> {
+    const data = await this.load();
+    data.cases[c.id] = c;
+    await this.persist();
+  }
+
+  async getCase(caseId: string): Promise<WaypointCase | null> {
+    const data = await this.load();
+    return data.cases[caseId] ?? null;
   }
 
   async saveHint(hint: WaypointHint): Promise<void> {
@@ -104,5 +128,50 @@ export class FileStore implements WaypointStore {
   async getProfile(agentId: string): Promise<AgentCapabilityProfile | null> {
     const data = await this.load();
     return data.profiles[agentId] ?? null;
+  }
+
+  async listBullets(): Promise<PlaybookBullet[]> {
+    const data = await this.load();
+    return Object.values(data.bullets);
+  }
+
+  async appendBullet(bullet: PlaybookBullet): Promise<void> {
+    const data = await this.load();
+    data.bullets[bullet.id] = bullet;
+    await this.persist();
+  }
+
+  async deleteBullet(bulletId: string): Promise<void> {
+    const data = await this.load();
+    delete data.bullets[bulletId];
+    await this.persist();
+  }
+
+  async markBulletsSeen(bulletIds: string[]): Promise<void> {
+    const data = await this.load();
+    const now = new Date();
+    for (const id of bulletIds) {
+      const b = data.bullets[id];
+      if (b) data.bullets[id] = { ...b, lastSeenAt: now };
+    }
+    await this.persist();
+  }
+
+  async applyBulletFeedback(
+    bulletIds: string[],
+    feedback: BulletFeedbackKind
+  ): Promise<void> {
+    const data = await this.load();
+    const now = new Date();
+    for (const id of bulletIds) {
+      const b = data.bullets[id];
+      if (!b) continue;
+      const next = { ...b, lastSeenAt: now };
+      if (feedback === "helpful") next.helpfulCount += 1;
+      else if (feedback === "harmful") next.harmfulCount += 1;
+      else next.neutralCount += 1;
+      data.bullets[id] = next;
+    }
+    await this.persist();
   }
 }
